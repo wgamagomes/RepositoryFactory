@@ -6,7 +6,6 @@ using System.Reflection;
 
 namespace Factory
 {
-
     #region Repository Factory Test
 
     public static class RepositoryFactoryTest
@@ -33,8 +32,7 @@ namespace Factory
                 throw new Exception("Oops! Something went wrong, the instances should be the same.");
         }
     }
-
-
+    
     #endregion
 
     #region Factory
@@ -59,6 +57,7 @@ namespace Factory
     #endregion
 
     #region UoW
+    
     public interface IUnitOfWork
     {
         bool Commit();
@@ -68,6 +67,8 @@ namespace Factory
     public class UnitOfWorkEF : UnitOfWork
     {
         private static ContextEF context;
+        private static readonly object mutex = new object();
+
         public override bool Commit()
         {
             var committed = context.Commit();
@@ -77,11 +78,20 @@ namespace Factory
 
         public override T GetRepository<T>()
         {
-            if (context == null)
-                context = new ContextEF();
+            T repository;
 
-            var repository = base.GetRepository<T>();
-            ((IRepositorysEF)repository).SetContext(context);
+            lock (mutex)
+            {
+                repository = base.GetRepository<T>();
+
+                if (context == null)
+                {
+                    context = new ContextEF();
+                }
+
+                ((IRepositoryEF)repository).SetContext(context);
+            }
+
             return repository;
         }
     }
@@ -92,20 +102,14 @@ namespace Factory
 
         private static Dictionary<string, IRepositoryBase> repositories;
 
-        private static readonly object mutex = new object();
-
         public virtual T GetRepository<T>() where T : IRepositoryBase
         {
-            lock (mutex)
+            if (repositories == null)
             {
-                if (repositories == null)
-                {
-                    repositories = RepositoryFactory.GetRepositories<T>();
-                }
+                repositories = RepositoryFactory.GetRepositories<T>();
             }
             return (T)repositories[typeof(T).Name];
         }
-
     }
 
     #endregion
@@ -116,6 +120,7 @@ namespace Factory
     {
         public bool Commit()
         {
+            //implement commit here
             return true;
         }
 
@@ -147,15 +152,14 @@ namespace Factory
         IEnumerable<TEntity> Find(Expression<Func<TEntity, bool>> predicate);
 
         IEnumerable<TEntity> FindAll();
-
     }
 
-    public interface IRepositorysEF
+    public interface IRepositoryEF
     {
         void SetContext(ContextEF context);
     }
 
-    public abstract class RepositoryEF<TEntity> : IRepository<TEntity>, IRepositorysEF where TEntity : Entity
+    public abstract class RepositoryEF<TEntity> : IRepository<TEntity>, IRepositoryEF where TEntity : Entity
     {
         public void SetContext(ContextEF context)
         {
@@ -211,6 +215,7 @@ namespace Factory
     {
 
     }
+
     #endregion
 
     #region Entities
@@ -223,14 +228,12 @@ namespace Factory
     public class Customer : Entity
     {
         public string Name { get; internal set; }
-
     }
 
     public class Employee : Entity
     {
-
+        public string Name { get; internal set; }
     }
 
     #endregion
-    
 }
