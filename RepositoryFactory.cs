@@ -25,12 +25,12 @@ namespace Factory
 
             var employees = employeeRepository.FindAll();
 
-            var sameCustomerRepository = new UnitOfWorkEF().GetRepository<ICustomerRepository>();
+            var otherCustomerRepository = new UnitOfWorkEF().GetRepository<ICustomerRepository>();
 
-            var isSame = sameCustomerRepository.Equals(customerRepository);
+            var equalInstances = otherCustomerRepository.Equals(customerRepository);
 
-            if (!isSame)
-                throw new Exception("Oops! something wrong. instances of different objects should be the same.");
+            if (!equalInstances)
+                throw new Exception("Oops! Something went wrong, the instances should be the same.");
         }
     }
 
